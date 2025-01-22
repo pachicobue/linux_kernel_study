@@ -7,23 +7,47 @@
   };
 
   outputs =
-    { nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+      perSystem =
+        {
+          config,
+          self',
+          inputs',
+          pkgs,
+          system,
+          ...
+        }:
+        {
+          devShells.default =
+            (pkgs.buildFHSEnv {
+              name = "buildroot";
+              targetPkgs =
+                pkgs:
+                (
+                  with pkgs;
+                  [
+                    (lib.hiPrio gcc)
+                    file
+                    gnumake
+                    ncurses.dev
+                    pkg-config
+                    unzip
+                    wget
+                    pkgsCross.aarch64-multiplatform.gccStdenv.cc
+                  ]
+                  ++ pkgs.linux.nativeBuildInputs
+                );
+            }).env;
         };
-        llvm = pkgs.llvmPackages_19;
-      in
-      {
-        devShells.default = pkgs.mkShell {
-          packages = [
-            pkgs.clang-tools
-            llvm.clang
-            llvm.lldb
-          ];
-        };
-      }
-    );
+      flake = {
+      };
+    };
 }
